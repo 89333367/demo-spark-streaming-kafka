@@ -138,13 +138,6 @@ public class Main {
                         log.info("{}", offsetRange);
                         Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
                         offsets.put(new TopicPartition(offsetRange.topic(), offsetRange.partition()), new OffsetAndMetadata(offsetRange.untilOffset()));
-                        /*kafkaConsumer.commitAsync(offsets, (offset, exception) -> {
-                            if (exception != null) {
-                                log.error("异步提交偏移量异常 {} {}", offsetRange, exception.getMessage());
-                            } else {
-                                log.info("异步提交偏移量成功 {}", offsetRange);
-                            }
-                        });*/
                         try {
                             kafkaConsumer.commitSync(offsets);
                             log.info("提交偏移量成功 {}", offsetRange);

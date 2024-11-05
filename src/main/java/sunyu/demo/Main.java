@@ -8,6 +8,7 @@ import cn.hutool.log.LogFactory;
 import cn.hutool.setting.dialect.Props;
 import kafka.common.TopicAndPartition;
 import kafka.serializer.StringDecoder;
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -59,7 +60,7 @@ public class Main {
 
         // todo 初始化offsets
         Map<TopicAndPartition, Long> fromOffsets = new HashMap<>();
-        KafkaConsumer kafkaConsumer = new KafkaConsumer(kafkaParams);
+        Consumer kafkaConsumer = new KafkaConsumer(kafkaParams);
         for (String topic : props.getStr("kafka.topics").split(",")) {
             List<PartitionInfo> partitionInfos = kafkaConsumer.partitionsFor(topic);
             for (PartitionInfo partitionInfo : partitionInfos) {

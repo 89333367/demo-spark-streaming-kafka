@@ -32,8 +32,7 @@ public class Main {
     static Props props = new Props("application.properties");
 
     public static void main(String[] args) {
-        long seconds = 60;
-        String seek = props.getStr("kafka.offset.reset");// EARLIEST LATEST
+        long seconds = 10;
 
         Map<String, String> kafkaParams = new HashMap<>();
         kafkaParams.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, props.getStr("kafka"));
@@ -41,6 +40,8 @@ public class Main {
         kafkaParams.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         kafkaParams.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         kafkaParams.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        // 由于设置这个会报错 Wrong value earliest of auto.offset.reset in ConsumerConfig; Valid values are smallest and largest ，所以这里不设置也可以
+        //kafkaParams.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, props.getStr("kafka.offset.reset").toLowerCase());// earliest latest
 
         SparkConf sparkConf = new SparkConf();
         if (ArrayUtil.isEmpty(args)) {
@@ -57,44 +58,35 @@ public class Main {
 
         // todo 初始化offsets
         Consumer<?, ?> kafkaConsumer = new KafkaConsumer(kafkaParams);
-        Map<TopicAndPartition, Long> fromOffsets = new HashMap<>();
+        List<TopicPartition> topicPartitions = new ArrayList<>();
         for (String topic : props.getStr("kafka.topics").split(",")) {
             List<PartitionInfo> partitionInfos = kafkaConsumer.partitionsFor(topic);
             for (PartitionInfo partitionInfo : partitionInfos) {
-                log.info("分区信息 {}", partitionInfo);
                 TopicPartition topicPartition = new TopicPartition(topic, partitionInfo.partition());
-                kafkaConsumer.assign(Collections.singletonList(topicPartition));
-                kafkaConsumer.seekToBeginning(topicPartition);
-                long beginOffset = kafkaConsumer.position(topicPartition);
-                log.info("最早的 offset {}-{} {}", topic, partitionInfo.partition(), beginOffset);
-                kafkaConsumer.seekToEnd(topicPartition);
-                long endOffset = kafkaConsumer.position(topicPartition);
-                log.info("最后的 offset {}-{} {}", topic, partitionInfo.partition(), endOffset);
-                OffsetAndMetadata committed = kafkaConsumer.committed(topicPartition);
-                long committedOffset = (committed != null) ? committed.offset() : -1;
-                log.info("当前组的 offset {}-{} {}", topic, partitionInfo.partition(), committedOffset);
-                if (committedOffset == -1) {
-                    if (seek.equalsIgnoreCase(OffsetResetStrategy.EARLIEST.name())) {
-                        committedOffset = beginOffset;
-                    } else if (seek.equalsIgnoreCase(OffsetResetStrategy.LATEST.name())) {
-                        committedOffset = endOffset;
-                    } else {
-                        committedOffset = beginOffset;
-                    }
-                    log.info("修正后的 offset {}-{} {}", topic, partitionInfo.partition(), committedOffset);
-                }
-                if (committedOffset < beginOffset) {
-                    committedOffset = beginOffset;
-                    log.info("修正后的 offset {}-{} {}", topic, partitionInfo.partition(), committedOffset);
-                }
-                if (committedOffset > endOffset) {
-                    committedOffset = endOffset;
-                    log.info("修正后的 offset {}-{} {}", topic, partitionInfo.partition(), committedOffset);
-                }
-                fromOffsets.put(new TopicAndPartition(topic, partitionInfo.partition()), committedOffset);
+                topicPartitions.add(topicPartition);
             }
         }
-        //kafkaConsumer.close();//这里不能关闭，后面需要提交offset使用
+        kafkaConsumer.assign(topicPartitions);
+        Map<TopicAndPartition, Long> fromOffsets = new HashMap<>();
+        for (TopicPartition topicPartition : topicPartitions) {
+            OffsetAndMetadata committed = kafkaConsumer.committed(topicPartition);
+            if (committed != null) {
+                log.info("CURRENT group offset {}-{} {}", topicPartition.topic(), topicPartition.partition(), committed.offset());
+                fromOffsets.put(new TopicAndPartition(topicPartition.topic(), topicPartition.partition()), committed.offset());
+            } else {
+                if (props.getStr("kafka.offset.reset").equalsIgnoreCase(OffsetResetStrategy.LATEST.name())) {
+                    kafkaConsumer.seekToEnd(topicPartition);
+                    long offset = kafkaConsumer.position(topicPartition);
+                    log.info("LATEST offset {}-{} {}", topicPartition.topic(), topicPartition.partition(), offset);
+                    fromOffsets.put(new TopicAndPartition(topicPartition.topic(), topicPartition.partition()), offset);
+                } else {
+                    kafkaConsumer.seekToBeginning(topicPartition);
+                    long offset = kafkaConsumer.position(topicPartition);
+                    log.info("EARLIEST offset {}-{} {}", topicPartition.topic(), topicPartition.partition(), offset);
+                    fromOffsets.put(new TopicAndPartition(topicPartition.topic(), topicPartition.partition()), offset);
+                }
+            }
+        }
         log.info("fromOffsets {}", fromOffsets);
 
         KafkaUtils.createDirectStream(javaStreamingContext, String.class, String.class,

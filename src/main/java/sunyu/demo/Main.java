@@ -56,8 +56,8 @@ public class Main {
         JavaStreamingContext javaStreamingContext = new JavaStreamingContext(sparkConf, batchDuration);
 
         // todo 初始化offsets
-        Map<TopicAndPartition, Long> fromOffsets = new HashMap<>();
         Consumer<?, ?> kafkaConsumer = new KafkaConsumer(kafkaParams);
+        Map<TopicAndPartition, Long> fromOffsets = new HashMap<>();
         for (String topic : props.getStr("kafka.topics").split(",")) {
             List<PartitionInfo> partitionInfos = kafkaConsumer.partitionsFor(topic);
             for (PartitionInfo partitionInfo : partitionInfos) {

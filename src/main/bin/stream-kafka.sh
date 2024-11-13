@@ -48,4 +48,4 @@ spark-submit \
   --conf spark.streaming.kafka.maxRatePerPartition=10000 \
   --conf spark.streaming.stopGracefullyOnShutdown=true \
   $APP_JAR \
-  1
+  60

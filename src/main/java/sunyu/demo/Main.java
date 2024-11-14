@@ -68,25 +68,8 @@ public class Main {
         }
         kafkaConsumer.assign(topicPartitions);
         Map<TopicAndPartition, Long> fromOffsets = new HashMap<>();
-        for (TopicPartition topicPartition : topicPartitions) {
-            OffsetAndMetadata committed = kafkaConsumer.committed(topicPartition);
-            if (committed != null) {
-                log.info("CURRENT group offset {}-{} {}", topicPartition.topic(), topicPartition.partition(), committed.offset());
-                fromOffsets.put(new TopicAndPartition(topicPartition.topic(), topicPartition.partition()), committed.offset());
-            } else {
-                if (props.getStr("kafka.offset.reset").equalsIgnoreCase(OffsetResetStrategy.LATEST.name())) {
-                    kafkaConsumer.seekToEnd(topicPartition);
-                    long offset = kafkaConsumer.position(topicPartition);
-                    log.info("LATEST offset {}-{} {}", topicPartition.topic(), topicPartition.partition(), offset);
-                    fromOffsets.put(new TopicAndPartition(topicPartition.topic(), topicPartition.partition()), offset);
-                } else {
-                    kafkaConsumer.seekToBeginning(topicPartition);
-                    long offset = kafkaConsumer.position(topicPartition);
-                    log.info("EARLIEST offset {}-{} {}", topicPartition.topic(), topicPartition.partition(), offset);
-                    fromOffsets.put(new TopicAndPartition(topicPartition.topic(), topicPartition.partition()), offset);
-                }
-            }
-        }
+        Map<TopicPartition, OffsetAndMetadata> curOffsets = offsetCurrent(topicPartitions, kafkaConsumer);
+        curOffsets.forEach((topicPartition, offsetAndMetadata) -> fromOffsets.put(new TopicAndPartition(topicPartition.topic(), topicPartition.partition()), offsetAndMetadata.offset()));
         log.info("fromOffsets {}", fromOffsets);
 
         KafkaUtils.createDirectStream(javaStreamingContext, String.class, String.class,
@@ -141,5 +124,89 @@ public class Main {
 
         javaStreamingContext.start();
         javaStreamingContext.awaitTermination();
+    }
+
+
+    /**
+     * 获得最初的offset
+     *
+     * @return
+     */
+    public static Map<TopicPartition, OffsetAndMetadata> offsetEarliest(List<TopicPartition> topicPartitions, Consumer<?, ?> consumer) {
+        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+        for (TopicPartition topicPartition : topicPartitions) {
+            consumer.seekToBeginning(topicPartition);
+            long offset = consumer.position(topicPartition);
+            //log.info("EARLIEST offset {} {} {}", topic, topicPartition.partition(), offset);
+            offsets.put(topicPartition, new OffsetAndMetadata(offset));
+        }
+        return offsets;
+    }
+
+    /**
+     * 获得最后的offset
+     *
+     * @return
+     */
+    public static Map<TopicPartition, OffsetAndMetadata> offsetLatest(List<TopicPartition> topicPartitions, Consumer<?, ?> consumer) {
+        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+        for (TopicPartition topicPartition : topicPartitions) {
+            consumer.seekToEnd(topicPartition);
+            long offset = consumer.position(topicPartition);
+            //log.info("LATEST offset {} {} {}", topic, topicPartition.partition(), offset);
+            offsets.put(topicPartition, new OffsetAndMetadata(offset));
+        }
+        return offsets;
+    }
+
+
+    /**
+     * 获得当前的offset
+     *
+     * @return
+     */
+    public static Map<TopicPartition, OffsetAndMetadata> offsetCurrent(List<TopicPartition> topicPartitions, Consumer<?, ?> consumer) {
+        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+        for (TopicPartition topicPartition : topicPartitions) {
+            OffsetAndMetadata committed = consumer.committed(topicPartition);
+            if (committed != null) {
+                //log.info("CURRENT group offset {} {} {}", topic, topicPartition.partition(), committed.offset());
+                offsets.put(topicPartition, new OffsetAndMetadata(committed.offset()));
+            } else {
+                if (props.getStr("kafka.offset.reset").equalsIgnoreCase(OffsetResetStrategy.LATEST.name())) {
+                    consumer.seekToEnd(topicPartition);
+                    long offset = consumer.position(topicPartition);
+                    //log.info("LATEST offset {} {} {}", topic, topicPartition.partition(), offset);
+                    offsets.put(topicPartition, new OffsetAndMetadata(offset));
+                } else {
+                    consumer.seekToBeginning(topicPartition);
+                    long offset = consumer.position(topicPartition);
+                    //log.info("EARLIEST offset {} {} {}", topic, topicPartition.partition(), offset);
+                    offsets.put(topicPartition, new OffsetAndMetadata(offset));
+                }
+            }
+        }
+        // todo 修正offset，避免超出range
+        Map<TopicPartition, OffsetAndMetadata> earliest = offsetEarliest(topicPartitions, consumer);
+        earliest.forEach((topicPartition, offsetAndMetadata) -> {
+            OffsetAndMetadata cur = offsets.get(topicPartition);
+            if (cur == null) {
+                offsets.put(topicPartition, offsetAndMetadata);
+            } else if (cur.offset() < offsetAndMetadata.offset()) {
+                log.warn("当前 {}-{} 小于偏移量范围 {} < {} 进行修正", topicPartition.topic(), topicPartition.partition(), cur.offset(), offsetAndMetadata.offset());
+                offsets.put(topicPartition, offsetAndMetadata);
+            }
+        });
+        Map<TopicPartition, OffsetAndMetadata> latest = offsetLatest(topicPartitions, consumer);
+        latest.forEach((topicPartition, offsetAndMetadata) -> {
+            OffsetAndMetadata cur = offsets.get(topicPartition);
+            if (cur == null) {
+                offsets.put(topicPartition, offsetAndMetadata);
+            } else if (cur.offset() > offsetAndMetadata.offset()) {
+                log.warn("当前 {}-{} 大于偏移量范围 {} > {} 进行修正", topicPartition.topic(), topicPartition.partition(), cur.offset(), offsetAndMetadata.offset());
+                offsets.put(topicPartition, offsetAndMetadata);
+            }
+        });
+        return offsets;
     }
 }

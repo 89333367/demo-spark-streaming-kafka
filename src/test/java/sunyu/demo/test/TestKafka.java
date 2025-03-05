@@ -2,7 +2,6 @@ package sunyu.demo.test;
 
 import cn.hutool.log.Log;
 import cn.hutool.log.LogFactory;
-import cn.hutool.setting.dialect.Props;
 import org.junit.Test;
 import sunyu.util.KafkaOffsetUtil;
 
@@ -11,15 +10,15 @@ public class TestKafka {
 
     @Test
     public void t001() {
-        Props props = new Props("application.properties");
         KafkaOffsetUtil kafkaOffsetUtil = KafkaOffsetUtil.builder()
-                .bootstrapServers(props.getStr("kafka"))
-                .groupId(props.getStr("kafka.group.id"))
-                .topic(props.getStr("kafka.topics"))
+                .bootstrapServers("172.16.1.5:9092,172.16.1.15:9092,172.16.1.16:9092")
+                .groupId("bsr_stream_mq_prod_test")
+                .topic("US_GENERAL_NJ")
                 .build();
-        log.info("{}", kafkaOffsetUtil.offsetEarliest());
-        log.info("{}", kafkaOffsetUtil.offsetCurrent());
-        log.info("{}", kafkaOffsetUtil.offsetLatest());
+
+        log.info("{}", kafkaOffsetUtil.getCurrentOffsets());
+
+        //程序关闭前回收资源
         kafkaOffsetUtil.close();
     }
 }

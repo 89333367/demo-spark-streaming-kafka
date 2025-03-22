@@ -1,7 +1,7 @@
 #!/bin/bash
 
-APP_NAME=demo-spark-streaming-kafka_
-APP_VERSION=2024.11.04
+APP_NAME=bsr-streaming-kafka_
+APP_VERSION=2024.11.14
 APP_JAR=../lib/demo-spark-streaming-kafka-1.0.0.jar
 MAIN_CLASS=sunyu.demo.Main
 
@@ -38,7 +38,7 @@ spark-submit \
   --conf spark.driver.maxResultSize=0 \
   --conf spark.executor.cores=1 \
   --conf spark.executor.instances=2 \
-  --conf spark.executor.memory=2g \
+  --conf spark.executor.memory=1g \
   --conf spark.serializer=org.apache.spark.serializer.KryoSerializer \
   --conf spark.dynamicAllocation.enabled=false \
   --conf spark.shuffle.service.enabled=true \
@@ -48,4 +48,4 @@ spark-submit \
   --conf spark.streaming.kafka.maxRatePerPartition=10000 \
   --conf spark.streaming.stopGracefullyOnShutdown=true \
   $APP_JAR \
-  1
+  60

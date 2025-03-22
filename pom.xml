@@ -38,16 +38,31 @@
             <version>1.6.3</version>
             <scope>provided</scope>
         </dependency>
+        <!-- https://central.sonatype.com/artifact/org.junit.jupiter/junit-jupiter/versions -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.12.1</version>
             <scope>test</scope>
         </dependency>
+        <!-- https://central.sonatype.com/artifact/log4j/log4j/versions -->
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- https://central.sonatype.com/artifact/cn.hutool/hutool-all/versions -->
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
-            <version>5.8.33</version>
+            <version>5.8.36</version>
+        </dependency>
+        <dependency>
+            <groupId>sunyu.util</groupId>
+            <artifactId>util-kafka</artifactId>
+            <!-- {kafka-clients.version}_{util.version}_{jdk.version}_{architecture.version} -->
+            <version>0.9.0.1_1.0_jdk8_x64</version>
         </dependency>
     </dependencies>
 

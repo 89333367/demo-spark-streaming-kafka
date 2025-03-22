@@ -65,7 +65,7 @@ public class Main {
                     //循环一批数据
                     javaRDD.foreachPartition((VoidFunction<Iterator<String[]>>) iterator -> {
                         iterator.forEachRemaining(strings -> {
-                            //log.info("[收到数据] topic:{} key:{} value:{}", strings[0], strings[1], strings[2]);
+                            log.info("[收到数据] topic:{} key:{} value:{}", strings[0], strings[1], strings[2]);
                             // todo 处理数据
                         });
                     });

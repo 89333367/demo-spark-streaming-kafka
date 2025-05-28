@@ -1,7 +1,7 @@
 #!/bin/bash
 
 APP_NAME=bsr-streaming-kafka_
-APP_VERSION=2024.11.14
+APP_VERSION=2025.05.28
 APP_JAR=../lib/demo-spark-streaming-kafka-1.0.0.jar
 MAIN_CLASS=sunyu.demo.Main
 

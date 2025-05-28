@@ -1,11 +1,11 @@
 package sunyu.demo.test;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import sunyu.demo.Main;
 
 public class TestMain {
     @Test
-    public void testMain(){
+    public void testMain() {
         Main.main(null);
     }
 }
